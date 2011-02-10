@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<painter>
+    <collection name="Description">
+        <items>
+            <item class="string">Fields/Wall</item>
+            <item class="string">Gates/OpenDoorMagic</item>
+        </items>
+    </collection>
+</painter>
