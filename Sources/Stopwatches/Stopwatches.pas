@@ -88,6 +88,20 @@ type
 
 implementation
 
+{-------------}
+{ Unit events }
+{-------------}
+
+procedure InitializeUnit(Master: TMaster);
+begin
+  FunLabyRegisterClass(TStopwatchTimerEntry);
+end;
+
+procedure Unloading(Master: TMaster);
+begin
+  FunLabyUnregisterClass(TStopwatchTimerEntry);
+end;
+
 {----------------------------}
 { TStopwatchTimerEntry class }
 {----------------------------}
