@@ -34,7 +34,7 @@ const
 
 implementation
 
-procedure InitializeUnit(Master: TMaster; Params: TStrings);
+procedure InitializeUnit(Master: TMaster);
 begin
   TUnderwaterPlugin.Create(Master, idUnderwaterPlugin);
 end;

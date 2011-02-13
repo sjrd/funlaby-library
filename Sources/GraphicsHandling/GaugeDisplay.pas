@@ -136,14 +136,14 @@ var { FunDelphi codegen }
 
 implementation
 
-procedure InitializeUnit(Master: TMaster; Params: TStrings);
+procedure InitializeUnit(Master: TMaster);
 begin
   FunLabyRegisterClass(TGaugeDescription);
 
   TGaugeDisplayPlugin.Create(Master, idGaugeDisplayPlugin);
 end;
 
-procedure Unloading;
+procedure Unloading(Master: TMaster);
 begin
   FunLabyUnregisterClass(TGaugeDescription);
 end;

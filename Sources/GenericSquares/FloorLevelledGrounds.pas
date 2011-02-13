@@ -302,7 +302,7 @@ var { FunDelphi codegen }
 
 implementation
 
-procedure InitializeUnit(Master: TMaster; Params: TStrings);
+procedure InitializeUnit(Master: TMaster);
 begin
   TFullField.Create(Master, idFullField);
   TEmptyField.Create(Master, idEmptyField);

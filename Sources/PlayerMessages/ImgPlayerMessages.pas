@@ -73,7 +73,7 @@ procedure ShowImageMsg(Player: TPlayer; const Text: string;
 
 implementation
 
-procedure InitializeUnit(Master: TMaster; Params: TStrings);
+procedure InitializeUnit(Master: TMaster);
 begin
   TShowImageMessagePlugin.Create(Master, idShowImageMessagePlugin);
 end;

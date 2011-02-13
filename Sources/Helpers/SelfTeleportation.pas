@@ -72,7 +72,7 @@ var { FunDelphi codegen }
 
 implementation
 
-procedure InitializeUnit(Master: TMaster; Params: TStrings);
+procedure InitializeUnit(Master: TMaster);
 begin
   FunLabyRegisterClass(TSelfTeleportationDest);
 
