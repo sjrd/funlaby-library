@@ -32,6 +32,14 @@ field TEmptyField
   name 'Vide';
 
   property UsePainter: Boolean;
+  property CheckIsMoveAllowed: Boolean;
+
+  on AfterConstruction do
+  begin
+    inherited;
+
+    CheckIsMoveAllowed := True;
+  end;
 
   on DoDraw do
   var
@@ -110,7 +118,7 @@ field TEmptyField
       Player.ShowMessage('Tu ne voudrais quand même pas sauter si bas ?! ' +
         'Il y a ' + IntToStr(Depth) + ' étages, là !');
       Cancel;
-    end else
+    end else if CheckIsMoveAllowed then
     begin
       if not Player.IsMoveAllowed(Below, Key, Shift) then
         Cancel;
