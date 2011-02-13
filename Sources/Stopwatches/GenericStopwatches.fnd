@@ -1,0 +1,33 @@
+unit GenericStopwatches;
+
+uses
+  FunLabyBase, Stopwatches;
+
+resourcestring
+  SDefaultLoseMessage = 'Le temps est écoulé. Tu as perdu !';
+
+components
+  LoseStopwatchPlugin: TLoseStopwatchPlugin;
+
+plugin TLoseStopwatchPlugin(TStopwatchPlugin)
+  hint 'Chronomètre qui fait perdre le joueur s''il expire';
+
+  property LoseMessage: string;
+
+  on AfterConstruction do
+  begin
+    inherited;
+
+    LoseMessage := SDefaultLoseMessage;
+  end;
+
+  on Expired do
+  begin
+    Player.Lose;
+
+    if LoseMessage <> '' then
+      Player.ShowMessage(LoseMessage);
+  end;
+end;
+
+end.

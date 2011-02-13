@@ -1,0 +1,11 @@
+unit WoodFloorGround;
+
+components
+  WoodFloor: TWoodFloor;
+
+field TWoodFloor(TGround)
+  name 'Plancher';
+  image 'Fields/WoodFloor';
+end;
+
+end.

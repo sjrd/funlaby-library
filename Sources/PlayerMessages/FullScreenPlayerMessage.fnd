@@ -1,0 +1,36 @@
+unit FullScreenPlayerMessage;
+
+uses
+  FLBShowMessage;
+
+components
+  FullScreenShowMessagePlugin: TFullScreenShowMessagePlugin;
+
+plugin TFullScreenShowMessagePlugin(TDefaultShowMessagePlugin)
+  on UpdateMeasures do
+  begin
+    inherited;
+
+    PlayerData.MaxLineCount := 10;
+  end;
+
+  on DrawBorder do
+  var
+    Height, Top: Integer;
+  begin
+    // Hack to work around the lack of a virtual BuildMessageRect method
+    with PlayerData do
+    begin
+      Height := MessageRect.Bottom - MessageRect.Top;
+      Top := (ViewRect.Bottom - ViewRect.Top - Height) div 2;
+
+      MessageRect := Rect(MessageRect.Left, Top,
+        MessageRect.Right, Top+Height);
+    end;
+
+    // Actual job of DrawBorder
+    Bitmap.Clear(clWhite32);
+  end;
+end;
+
+end.

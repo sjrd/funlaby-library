@@ -1,0 +1,117 @@
+unit SimpleBridges;
+
+uses
+  FunLabyBase;
+
+attributes
+  IsAboveBridge;
+
+components
+  SimpleBridgeCreator: TSimpleBridgeCreator;
+
+poscomponent TSimpleBridge(TSquareModifier)
+  name 'Pont';
+  zindex 800;
+  category 'Ponts';
+
+  property OpenedDirs: TDirections;
+
+  on AfterConstruction do
+  begin
+    SetWantMessages(True);
+
+    inherited;
+
+    OpenedDirs := [diNorth..diWest];
+  end;
+
+  on message Plank do
+  begin
+    // Empêche toute utilisation de la planche
+    MsgID := 0;
+  end;
+
+  on DoDraw do
+  var
+    Dir: TDirection;
+    Name: string;
+  begin
+    with Master.ImagesMaster do
+    begin
+      Draw('Bridges/BridgeCenter', Context);
+
+      for Dir := diNorth to diWest do
+      begin
+        if not (Dir in OpenedDirs) then
+          Continue;
+
+        Name := GetEnumName(TypeInfo(TDirection), Ord(Dir));
+        Name := 'Bridges/Bridge' + Copy(Name, 3, MaxInt);
+
+        Draw(Name, Context);
+      end;
+    end;
+
+    inherited;
+  end;
+
+  on Entering do
+  begin
+    if not (NegDir[Player.Direction] in OpenedDirs) then
+      Hooked := False;
+  end;
+
+  on Exiting do
+  begin
+    if Player.IsAboveBridge <> 0 then
+    begin
+      if not (Player.Direction in OpenedDirs) then
+        Cancel;
+    end else
+    begin
+      if Player.Direction in OpenedDirs then
+        Cancel
+      else
+        Hooked := False;
+    end;
+  end;
+
+  on Entered do
+  begin
+    if NegDir[Player.Direction] in OpenedDirs then
+    begin
+      Player.IsAboveBridge := 1;
+    end else
+    begin
+      Player.Hide;
+      Hooked := False;
+    end;
+  end;
+
+  on Exited do
+  begin
+    if Player.IsAboveBridge <> 0 then
+    begin
+      Player.IsAboveBridge := 0;
+    end else
+    begin
+      Player.Show;
+      Hooked := False;
+    end;
+  end;
+
+  on Execute do
+  begin
+    if Player.IsAboveBridge = 0 then
+      Hooked := False;
+  end;
+end;
+
+creator TSimpleBridgeCreator for TSimpleBridge
+  hint 'Créer un nouveau pont';
+  category 'Ponts';
+  image 'Bridges/BridgeCenter', 'Bridges/BridgeNorth', 'Bridges/BridgeSouth';
+  image 'Creators/Creator';
+end;
+
+end.

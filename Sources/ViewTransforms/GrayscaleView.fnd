@@ -1,0 +1,18 @@
+unit GrayscaleView;
+
+uses
+  GR32_Filters;
+
+components
+  GrayscaleViewPlugin: TGrayscaleViewPlugin;
+
+plugin TGrayscaleViewPlugin
+  zindex 800;
+
+  on DrawView do
+  begin
+    ColorToGrayscale(Context.Bitmap, Context.Bitmap);
+  end;
+end;
+
+end.

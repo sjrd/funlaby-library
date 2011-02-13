@@ -1,0 +1,80 @@
+unit PermanentPlayerMessage;
+
+uses
+  FLBShowMessage;
+
+components
+  ShowPermanentMessagePlugin: TShowPermanentMessagePlugin;
+
+messages
+  ShowPermanentMessage: TPlayerShowMsgMessage = $41;
+  HidePermanentMessage: TPlayerMessage = $42;
+
+procedure ShowPermanentMessage(Player: TPlayer; const Text: string);
+var
+  Msg: TPlayerShowMsgMessage;
+begin
+  Msg.MsgID := msgShowPermanentMessage;
+  Msg.Text := Text;
+  Player.Dispatch(Msg);
+end;
+
+procedure HidePermanentMessage(Player: TPlayer);
+var
+  Msg: TPlayerMessage;
+begin
+  Msg.MsgID := msgHidePermanentMessage;
+  Player.Dispatch(Msg);
+end;
+
+plugin TShowPermanentMessagePlugin(TDefaultShowMessagePlugin)
+  zindex 1000;
+
+  on message ShowMessage do
+  begin
+    // Disable the handling of normal messages
+  end;
+
+  on message ShowPermanentMessage do
+  begin
+    // Does not handle permanent messages with answers
+    if Length(Answers) > 0 then
+      Exit;
+
+    Handled := True;
+
+    if Text <> '' then
+      ShowMessage(Context);
+  end;
+
+  on UpdateMeasures do
+  begin
+    inherited;
+
+    PlayerData.MinLineCount := 1;
+  end;
+
+  on ShowMessage do
+  begin
+    inherited;
+
+    TDefaultShowMessagePluginPlayerData(
+      GetPlayerData(Context.Player)).Activate;
+  end;
+
+  on message HidePermanentMessage do
+  begin
+    TDefaultShowMessagePluginPlayerData(
+      GetPlayerData(Context.Player)).Deactivate;
+  end;
+
+  on DrawContinueSymbol do
+  begin
+  end;
+
+  on WaitForContinueKey do
+  begin
+  end;
+end;
+
+end.

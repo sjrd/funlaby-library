@@ -1,0 +1,43 @@
+unit SplashScreen;
+
+uses
+  ImageOnView;
+
+const
+  DefaultSplashScreenDelay = 3000;
+
+messages
+  DiscardSplashScreen: TPlayerMessage = $58;
+
+components
+  SplashScreenPlugin: TSplashScreenPlugin;
+
+plugin TSplashScreenPlugin(TImageOnViewPlugin)
+  property Delay: Cardinal;
+
+  on AfterConstruction do
+  begin
+    inherited;
+
+    PosOnImage.OriginX := poCentered;
+    PosOnImage.OriginY := poCentered;
+
+    PosOnView.OriginX := poCentered;
+    PosOnView.OriginY := poCentered;
+
+    Delay := DefaultSplashScreenDelay;
+  end;
+
+  on message GameStarted do
+  begin
+    Master.Timers.ScheduleNotificationMsg(Delay,
+      Player, msgDiscardSplashScreen);
+  end;
+
+  on message DiscardSplashScreen do
+  begin
+    Player.RemovePlugin(Self);
+  end;
+end;
+
+end.

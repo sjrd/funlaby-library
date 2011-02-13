@@ -1,0 +1,44 @@
+unit IceGround;
+
+uses
+  Generics, FLBFields;
+  
+actions
+  SelfControlOnIce;
+  
+const
+  IceTemporization = 100;
+  
+components
+  Ice: TIce;
+  IceRink: TIceRink;
+  IceRinkTool: TObjectTool
+    ObjectDef: IceRink;
+    FindMessage:
+      'Tu as trouvé des patins. Tu vas pouvoir te contrôler sur la glace.';
+  end;
+  
+field TIce(TGround)
+  name 'Glace';
+  image 'Fields/Ice';
+  
+  on Entered do
+  begin
+    inherited;
+
+    if Player cannot SelfControlOnIce then
+    begin
+      GoOnMoving := True;
+      Temporization := IceTemporization;
+    end;
+  end;
+end;
+
+object TIceRink
+  name 'Patins';
+  image 'Objects/IceRink';
+  
+  action SelfControlOnIce;
+end;
+
+end.

@@ -1,0 +1,44 @@
+unit Chests;
+
+uses
+  FunLabyBase;
+
+const
+  SCategoryChests = 'Coffres';
+
+components
+  ClosedChest: TClosedChest;
+  EmptyOpenChest: TEmptyOpenChest;
+
+obstacle TClosedChest(TBlock)
+  name 'Coffre fermé';
+  image 'Chests/ClosedChest';
+  category SCategoryChests;
+
+  on AfterConstruction do
+  begin
+    HideEffectAndTool := True;
+
+    inherited;
+  end;
+
+  on Pushing do
+  begin
+    inherited;
+
+    Square.Obstacle := EmptyOpenChest;
+
+    if Square.Tool <> nil then
+      Square.Tool.Find(Context)
+    else
+      Player.ShowMessage('Il n''y avait rien dans ce coffre.');
+  end;
+end;
+
+obstacle TEmptyOpenChest
+  name 'Coffre ouvert vide';
+  image 'Chests/OpenChest';
+  category SCategoryChests;
+end;
+
+end.

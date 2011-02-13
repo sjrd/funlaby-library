@@ -1,0 +1,229 @@
+unit EmptyField;
+
+uses
+  FunLabyBase;
+
+actions
+  JumpFarBelow;
+  
+const
+  TrapDoorKey = 'T';
+  
+components
+  Empty: TEmptyField;
+  Parachutes: TParachutes;
+  Parachute: TObjectTool
+    ObjectDef: Parachutes;
+    FindMessage: 'Avec ce parachute, tu n''hésiteras plus à sauter de haut.';
+    Name: 'Parachute';
+  end;
+  TrapDoorField: TTrapDoorField;
+  TrapDoorsPlugin: TTrapDoorsPlugin;
+  TrapDoors: TTrapDoors;
+  TrapDoorTool: TObjectTool
+    ObjectDef: TrapDoors;
+    FindMessage:
+      'Tu pourras placer cette trappe sur un trou, ou la reprendre, en '+
+      'appuyant sur '+TrapDoorKey+'.';
+    Name: 'Trappe';
+  end;
+
+field TEmptyField
+  name 'Vide';
+
+  property UsePainter: Boolean;
+
+  on DoDraw do
+  var
+    Below: T3DPoint;
+    BelowQPos: TQualifiedPos;
+    BelowContext: TDrawSquareContext;
+    Depth: Integer;
+    I: Integer;
+  begin
+    if UsePainter then
+    begin
+      inherited;
+      DissipateGroundNeighbors(Context);
+      Exit;
+    end;
+
+    if IsNowhere then
+      Exit;
+  
+    Below := Pos;
+    Depth := 0;
+    
+    while (Below.Z >= 0) and (Map[Below] is TEmptyField) do
+    begin
+      Below.Z := Below.Z - 1;
+      Depth := Depth + 1;
+    end;
+    
+    if Below.Z < 0 then
+    begin
+      Bitmap.FillRectS(X, Y, X+SquareSize, Y+SquareSize, clBlack32);
+      DissipateGroundNeighbors(Context);
+    end else
+    begin
+      BelowQPos.Map := Map;
+      BelowQPos.Position := Below;
+      BelowContext := TDrawSquareContext.Create(Bitmap, X, Y, BelowQPos);
+      try
+        BelowContext.SetTickCount(TickCount);
+        Map[Below].Draw(BelowContext);
+      finally
+        BelowContext.Free;
+      end;
+
+      if Depth > 5 then
+        Depth := 5;
+
+      for I := 0 to Depth-1 do
+        Master.ImagesMaster.Draw('Filters/NiceSoftLighten', Context);
+    end;
+  end;
+
+  on Entering do
+  var
+    Below: T3DPoint;
+    Depth: Integer;
+  begin
+    inherited;
+  
+    Below := Pos;
+    Depth := 0;
+
+    while (Below.Z >= 0) and (Map[Below] is TEmptyField) do
+    begin
+      Below.Z := Below.Z - 1;
+      Depth := Depth + 1;
+    end;
+    
+    if Below.Z < 0 then
+    begin
+      Player.ShowMessage('Tu ne voudrais quand même pas sauter là-dedans ?! '+
+        'On n''en voit même pas le fond !');
+      Cancel;
+    end else if (Depth > 1) and (not (Player can JumpFarBelow)) then
+    begin
+      Player.ShowMessage('Tu ne voudrais quand même pas sauter si bas ?! ' +
+        'Il y a ' + IntToStr(Depth) + ' étages, là !');
+      Cancel;
+    end else
+    begin
+      if not Player.IsMoveAllowed(Below, Key, Shift) then
+        Cancel;
+    end;
+  end;
+  
+  on Entered do
+  var
+    Below: T3DPoint;
+    Redo: Boolean;
+    RedoDelay: Cardinal;
+  begin
+    if Pos.Z = 0 then
+      Exit;
+  
+    Below := Pos;
+    Below.Z := Below.Z-1;
+    
+    if SrcSquare is TEmptyField then
+      Temporize;
+      
+    Player.MoveTo(Below, True, Redo, RedoDelay);
+    GoOnMoving := Redo;
+    Temporization := RedoDelay;
+  end;
+end;
+
+object TParachutes
+  name 'Parachutes';
+  image 'Objects/Parachute';
+  
+  action JumpFarBelow;
+end;
+
+field TTrapDoorField
+  name 'Trappe';
+  image 'Fields/WoodFloor';
+end;
+
+object TTrapDoors
+  name 'Trappes';
+  image 'Objects/TrapDoor';
+  
+  on SetCount do
+  begin
+    inherited;
+    
+    Player.AddPlugin(TrapDoorsPlugin);
+  end;
+end;
+
+plugin TTrapDoorsPlugin
+  on PressKey do
+  var
+    Map: TMap;
+    PlayerPos, Pos: T3DPoint;
+    Dir: TDirection;
+    Found: Boolean;
+  begin
+    if (Key <> Ord(TrapDoorKey)) or (Shift <> []) then
+      Exit;
+      
+    Handled := True;
+      
+    Map := Player.Map;
+    PlayerPos := Player.Position;
+    Found := False;
+      
+    for Dir := diNorth to diWest do
+    begin
+      Pos := PointBehind(PlayerPos, Dir);
+      
+      if Map[Pos] is TrapDoorField then
+        Found := True
+      else if (Map[Pos] is Empty) and (Player has 1 TrapDoors) then
+        Found := True;
+        
+      if Found then
+        Break;
+    end;
+    
+    if not Found then
+    begin
+      if Map[PlayerPos] is TrapDoorField then
+        Player.ShowMessage('Tu dois te tenir à côté de la trappe pour la '+
+          'reprendre, et non dessus.');
+    
+      Exit;
+    end;
+      
+    if Map[Pos] is TrapDoorField then
+    begin
+      Map[Pos].Field := Empty;
+      Player receives 1 TrapDoors;
+      Exit;
+    end;
+    
+    if (Map[PointBehind(Pos, diNorth)] is TGround) and
+      (Map[PointBehind(Pos, diSouth)] is TGround) then
+      // OK
+    else if (Map[PointBehind(Pos, diEast)] is TGround) and
+      (Map[PointBehind(Pos, diWest)] is TGround) then
+      // OK
+    else
+    begin
+      Player.ShowMessage('Impossible de placer une trappe là car il faut du '+
+        'sol de part et d''autre.');
+      Exit;
+    end;
+    
+    Map[Pos].Field := TrapDoorField;
+    Player discards 1 TrapDoors;
+  end;
+end;
+
+end.

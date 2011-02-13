@@ -1,0 +1,74 @@
+unit Elevator;
+
+uses
+  FunLabyBase;
+
+const
+  SCategoryElevators = 'Élévateurs';
+
+attributes
+  ElevatorExplained;
+
+components
+  ElevatorCreator: TElevatorCreator;
+
+poscomponent TElevator(TSquareModifier)
+  name 'Élévateur';
+  image 'Fields/WoodFloor', 'Filters/PineEast', 'Filters/PineSouth';
+  category SCategoryElevators;
+
+  property IsUp: Boolean;
+
+  on Entering do
+  begin
+  end;
+
+  on Entered do
+  begin
+  end;
+
+  on Exiting do
+  begin
+  end;
+
+  on Exited do
+  begin
+    if IsUp then
+    begin
+      ChangePosition(Point3DAdd(Pos, 0, 0, -1));
+      IsUp := False;
+    end;
+  end;
+
+  on Execute do
+  var
+    Up: T3DPoint;
+  begin
+    if Src.Z = Pos.Z then
+    begin
+      Temporize;
+
+      Up := Point3DAdd(Pos, 0, 0, 1);
+      ChangePosition(Up);
+      Player.MoveTo(Up);
+
+      IsUp := True;
+
+      if Player.ElevatorExplained = 0 then
+      begin
+        Player.ShowMessage('Cet élévateur t''a fait remonter d''un étage. '+
+          'Quand tu en sortiras, il redescendra seul à l''étage inférieur.');
+        Player.ElevatorExplained := 1;
+      end;
+    end;
+  end;
+end;
+
+creator TElevatorCreator for TElevator
+  hint 'Créer un nouvel élévateur';
+  image 'Fields/WoodFloor', 'Filters/PineEast', 'Filters/PineSouth';
+  image 'Creators/Creator';
+  category SCategoryElevators;
+end;
+
+end.

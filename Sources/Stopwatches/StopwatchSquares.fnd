@@ -1,0 +1,68 @@
+unit StopwatchSquares;
+
+uses
+  FunLabyBase, Stopwatches;
+
+resourcestring
+  SCategoryStopwatches = 'Chronomètres';
+
+components
+  StartStopwatchEffectCreator: TStartStopwatchEffectCreator;
+  StopStopwatchEffectCreator: TStopStopwatchEffectCreator;
+
+effect TStartStopwatchEffect
+  name 'Démarre un chronomètre';
+  category SCategoryStopwatches;
+
+  property Stopwatch: TStopwatchPlugin;
+  property StartMessage: string;
+
+  on Execute do
+  var
+    Delay: Integer;
+  begin
+    if Stopwatch = nil then
+      Exit;
+
+    if StartMessage <> '' then
+    begin
+      Delay := Stopwatch.GetPlayerData(Player).Delay;
+      Player.ShowMessage(Format(StartMessage, [Delay div 1000]));
+    end;
+
+    Stopwatch.Start(Player);
+  end;
+end;
+
+effect TStopStopwatchEffect
+  name 'Arrête un chronomètre';
+  category SCategoryStopwatches;
+
+  property Stopwatch: TStopwatchPlugin;
+  property StopMessage: string;
+
+  on Execute do
+  begin
+    if Stopwatch = nil then
+      Exit;
+
+    Stopwatch.Stop(Player);
+
+    if StopMessage <> '' then
+      Player.ShowMessage(StopMessage);
+  end;
+end;
+
+creator TStartStopwatchEffectCreator for TStartStopwatchEffect
+  hint 'Créer un nouvel effet de démarrage de chronomètre';
+  image 'Miscellaneous/SimpleClock', 'Creators/Creator';
+  category SCategoryStopwatches;
+end;
+
+creator TStopStopwatchEffectCreator for TStopStopwatchEffect
+  hint 'Créer un nouvel effet d''arrêt de chronomètre';
+  image 'Miscellaneous/SimpleClock', 'Markers/RedCross', 'Creators/Creator';
+  category SCategoryStopwatches;
+end;
+
+end.

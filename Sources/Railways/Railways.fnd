@@ -1,0 +1,473 @@
+unit Railways;
+
+uses
+  FunLabyGraphics, FunLabyBase, GR32_Transforms;
+
+actions
+  GoOnRails;
+
+attributes
+  ContainingCarriage;
+
+messages
+  MobileAction: TPlayerMessage = $11;
+  PlayerEnteredTrain: TPlayerMessage = $54;
+  PutLightOn: TPlayerMessage = $55;
+  PutLightOff: TPlayerMessage = $56;
+
+const
+  SCategoryRails = 'Chemins de fer';
+  SCategoryTrains = 'Trains';
+
+resourcestring
+  SCannotSaveWhenPlayerInCarriage =
+    'Impossible de sauver quand le joueur se trouve dans un wagon.';
+
+components
+  RailsCreator: TRailsCreator;
+  RailsLightCreator: TRailsLightCreator;
+  LocomotiveCreator: TLocomotiveCreator;
+  CarriageCreator: TCarriageCreator;
+
+function DirToAngle(Dir: TDirection): Integer;
+begin
+  case Dir of
+    diNorth: Result := 0;
+    diEast: Result := 270;
+    diSouth: Result := 180;
+    diWest: Result := 90;
+  else
+    Result := 0;
+  end;
+end;
+
+function AngleBetweenDirs(FromDir, ToDir: TDirection): Integer;
+var
+  FromAngle, ToAngle: Integer;
+begin
+  FromAngle := DirToAngle(FromDir);
+  ToAngle := DirToAngle(ToDir);
+
+  if FromAngle - ToAngle > 180 then
+    ToAngle := ToAngle + 360
+  else if ToAngle - FromAngle > 180 then
+    FromAngle := FromAngle + 360;
+
+  Result := (FromAngle + ToAngle) div 2;
+end;
+
+procedure DrawRotated(Context: TDrawSquareContext; Painter: TPainter;
+  Angle: Integer);
+var
+  SrcBitmap: TBitmap32;
+  Transformation: TAffineTransformation;
+begin
+  if Angle = 0 then
+  begin
+    Painter.Draw(Context);
+    Exit;
+  end;
+
+  SrcBitmap := Painter.GetBitmap;
+  if SrcBitmap = nil then
+    Exit;
+
+  if SrcBitmap is TAnimatedBitmap32 then
+    SrcBitmap := TAnimatedBitmap32(SrcBitmap).GetFrameAtTime(TickCount);
+
+  Transformation := TAffineTransformation.Create;
+  try
+    Transformation.SrcRect := FloatRect(SrcBitmap.BoundsRect);
+    Transformation.Rotate(SrcBitmap.Width div 2, SrcBitmap.Height div 2, Angle);
+    Transformation.Translate(X, Y);
+
+    Transform(Bitmap, SrcBitmap, Transformation);
+  finally
+    Transformation.Free;
+  end;
+end;
+
+field TRails(TGround)
+  name 'Rails';
+  category SCategoryRails;
+
+  property BaseField: TField;
+  property Direction: TDirection;
+  property IsStop: Boolean;
+  property NoAutoStart: Boolean;
+  property AdditionnalDelay: Integer;
+
+  on AfterConstruction do
+  begin
+    inherited;
+
+    BaseField := Grass;
+  end;
+
+  on DoDraw do
+  begin
+    if BaseField <> nil then
+      BaseField.Draw(Context);
+
+    if not (Bitmap is TAvoidInfiniteRecursionBitmap32) then
+      inherited;
+  end;
+
+  on Entering do
+  begin
+    if Player cannot GoOnRails then
+      Cancel;
+  end;
+end;
+
+creator TRailsCreator for TRails
+  hint 'Créer de nouveaux rails';
+  image 'Rails/Horizontal', 'Creators/Creator';
+  category SCategoryRails;
+end;
+
+effect TRailsLight(TSwitch)
+  name 'Feu vert';
+  category SCategoryRails;
+
+  property Delay: Cardinal;
+  property DelayBeforeNextLight: Cardinal;
+  property NextLight: TSwitch;
+  property CopyTo: TSwitch;
+
+  on AfterConstruction do
+  begin
+    OffPainter.Clear;
+    OnPainter.Clear;
+
+    inherited;
+  end;
+
+  on message PutLightOn do
+  begin
+    IsOn := True;
+    Master.Timers.ScheduleNotificationMsg(Delay, Self, msgPutLightOff);
+
+    if CopyTo <> nil then
+      Master.Timers.ScheduleNotificationMsg(0, CopyTo, msgPutLightOn);
+  end;
+
+  on message PutLightOff do
+  begin
+    IsOn := False;
+
+    if NextLight <> nil then
+      Master.Timers.ScheduleNotificationMsg(DelayBeforeNextLight,
+        NextLight, msgPutLightOn);
+
+    if CopyTo <> nil then
+      Master.Timers.ScheduleNotificationMsg(0, CopyTo, msgPutLightOff);
+  end;
+
+  on Execute do
+  begin
+    // Disable the normal TSwitch behavior
+  end;
+end;
+
+poscomponent TAbstractCarriage(TSquareModifier)
+end;
+
+creator TRailsLightCreator for TRailsLight
+  hint 'Créer de nouveaux feux de chemin de fer';
+  image 'Rails/LightOffNorth', 'Creators/Creator';
+  category SCategoryRails;
+end;
+
+poscomponent TLocomotive(TMobileComponent)
+  name 'Locomotive';
+  image 'Trains/LocomotiveNorth';
+  category SCategoryTrains;
+
+  property Angle: Integer; // Angle de rotation en degrés
+  property Delay: Integer; // Temps entre deux mouvements
+  property Tracks: TPosComponent; // Wagon que tracte cette locomotive
+  property Enabled: Boolean; // Indique si la locomotive est active
+  property CanMoveInTrain: Boolean; // True si on peut se déplacer dans le train
+
+  property Moving: Boolean;
+  property StartScheduled: Boolean;
+
+  on AfterConstruction do
+  begin
+    inherited;
+
+    Enabled := True;
+  end;
+
+  on message GameStarted do
+  begin
+    if IsNoQPos(QPos) or (not (Map[Position].Field is TRails)) then
+      Exit;
+
+    if not TRails(Map[Position].Field).NoAutoStart then
+    begin
+      StartScheduled := True;
+      Master.Timers.ScheduleNotificationMsg(0, Self, msgMobileAction);
+    end;
+  end;
+
+  on message MobileAction do
+  var
+    DestPos: T3DPoint;
+    I: Integer;
+    PosComp: TPosComponent;
+    Rails: TRails;
+    NewDir: TDirection;
+  begin
+    if IsNoQPos(QPos) or (not (Map[Position].Field is TRails)) then
+      Exit;
+
+    // Check the light and the Enabled property
+    if (not Enabled) or ((Map[Position].Effect is TRailsLight) and
+      (not TRailsLight(Map[Position].Effect).IsOn)) then
+    begin
+      Master.Timers.ScheduleNotificationMsg(Delay, Self, msgMobileAction);
+      Exit;
+    end;
+
+    // Check that the destination square is free
+    DestPos := PointBehind(Position, Direction);
+    for I := 0 to Master.PosComponentCount-1 do
+    begin
+      PosComp := Master.PosComponents[I];
+      if (PosComp is TLocomotive) or (PosComp is TAbstractCarriage) then
+      begin
+        if (PosComp.Map = Map) and Same3DPoint(PosComp.Position, DestPos) then
+        begin
+          Master.Timers.ScheduleNotificationMsg(Delay, Self, msgMobileAction);
+          Exit;
+        end;
+      end;
+    end;
+
+    // Update state
+    Moving := True;
+    StartScheduled := False;
+
+    // Move
+    ChangePosition(DestPos);
+    if not (Map[Position].Field is TRails) then
+      Exit;
+
+    // Prepare next move
+    Rails := TRails(Map[Position].Field);
+
+    NewDir := Rails.Direction;
+    if NewDir = diNone then
+      NewDir := Direction;
+    Angle := AngleBetweenDirs(Direction, NewDir);
+    Direction := NewDir;
+
+    // Handle a stop
+    Moving := not Rails.IsStop;
+
+    // Schedule next move
+    if not (Rails.IsStop and Rails.NoAutoStart) then
+    begin
+      Master.Timers.ScheduleNotificationMsg(Delay + Rails.AdditionnalDelay,
+        Self, msgMobileAction);
+    end;
+  end;
+
+  on message PlayerEnteredTrain do
+  var
+    Rails: TRails;
+  begin
+    if Moving or StartScheduled or IsNoQPos(QPos) or
+      (not (Map[Position].Field is TRails)) then
+      Exit;
+
+    Rails := TRails(Map[Position].Field);
+
+    if Rails.NoAutoStart then
+    begin
+      StartScheduled := True;
+      Master.Timers.ScheduleNotificationMsg(Rails.AdditionnalDelay,
+        Self, msgMobileAction);
+    end;
+  end;
+
+  on ChangePosition do
+  var
+    OldPos: T3DPoint;
+  begin
+    if Master.Editing then
+    begin
+      inherited;
+      Exit;
+    end;
+
+    OldPos := Position;
+
+    inherited;
+
+    if Tracks <> nil then
+      Tracks.ChangePosition(OldPos);
+  end;
+
+  on DoDraw do
+  begin
+    DrawRotated(Context, Painter, Angle);
+  end;
+end;
+
+creator TLocomotiveCreator for TLocomotive
+  hint 'Créer une nouvelle locomotive';
+  image 'Trains/LocomotiveNorth', 'Creators/Creator';
+  category SCategoryTrains;
+end;
+
+poscomponent TCarriage(TAbstractCarriage)
+  name 'Wagon';
+  image 'Trains/CarriageNorth';
+  category SCategoryTrains;
+
+  property Angle: Integer;
+  property Tracks: TPosComponent;
+  property Locomotive: TLocomotive;
+
+  on Entering do
+  begin
+    if Locomotive = nil then
+      Exit;
+
+    if Locomotive.Moving then
+      Cancel;
+
+    if (not Locomotive.CanMoveInTrain) and
+      (Player.ContainingCarriage <> Integer(nil)) and
+      (TCarriage(Player.ContainingCarriage).Locomotive = Locomotive) then
+      Cancel;
+  end;
+
+  on Exiting do
+  begin
+    if Player.ContainingCarriage = Integer(Self) then
+    begin
+      if (Locomotive <> nil) and (Locomotive.Moving) then
+        Cancel;
+    end else
+    begin
+      Hooked := False;
+    end;
+  end;
+
+  on Entered do
+  begin
+    if Player.ContainingCarriage <> Integer(nil) then
+      Exit;
+
+    Player.ContainingCarriage := Integer(Self);
+
+    if Locomotive <> nil then
+    begin
+      Master.Timers.ScheduleNotificationMsg(0, Locomotive,
+        msgPlayerEnteredTrain);
+    end;
+  end;
+
+  on Exited do
+  begin
+    if Player.ContainingCarriage = Integer(Self) then
+      Player.ContainingCarriage := Integer(nil)
+    else
+      Hooked := False;
+  end;
+
+  on ChangePosition do
+  var
+    OldPos: T3DPoint;
+    OldQPos: TQualifiedPos;
+    NewDir: TDirection;
+    I: Integer;
+    Player: TPlayer;
+  begin
+    if Master.Editing then
+    begin
+      inherited;
+      Exit;
+    end;
+
+    OldPos := Position;
+    OldQPos := QPos;
+
+    inherited;
+
+    for I := 0 to Master.PlayerCount-1 do
+    begin
+      Player := Master.Players[I];
+
+      if Player.ContainingCarriage = Integer(Self) then
+      begin
+        Player.Direction := Direction;
+        Player.MoveTo(Position);
+      end;
+    end;
+
+    if Tracks <> nil then
+      Tracks.ChangePosition(OldPos);
+
+    // Update Direction and Angle
+    if Map[Position].Field is TRails then
+    begin
+      NewDir := TRails(Map[Position].Field).Direction;
+
+      if NewDir = diNone then
+        NewDir := Direction;
+      Angle := AngleBetweenDirs(Direction, NewDir);
+      Direction := NewDir;
+    end;
+  end;
+
+  on DoDraw do
+  begin
+    DrawRotated(Context, Painter, Angle);
+  end;
+
+  on DefineProperties do
+  var
+    I: Integer;
+  begin
+    inherited;
+
+    { L'implémentation actuelle fait que l'enregistrement de la partie lorsque
+      le joueur est dans un wagon ne peut pas fonctionner correctement.
+      Ceci empêche proprement la sauvegarde avec un message d'erreur. }
+    if psWriting in PersistentState then
+    begin
+      for I := 0 to Master.PlayerCount-1 do
+      begin
+        if Master.Players[I].ContainingCarriage <> Integer(nil) then
+          raise EInOutError.Create(SCannotSaveWhenPlayerInCarriage);
+      end;
+    end;
+  end;
+end;
+
+creator TCarriageCreator for TCarriage
+  hint 'Créer un nouveau wagon';
+  image 'Trains/CarriageNorth', 'Creators/Creator';
+  category SCategoryTrains;
+end;
+
+procedure GameStarted(Master: TMaster) private;
+var
+  I: Integer;
+  Effect: TEffect;
+begin
+  for I := 0 to Master.EffectCount-1 do
+  begin
+    Effect := Master.Effects[I];
+
+    if (Effect is TRailsLight) and TRailsLight(Effect).IsOn then
+      Master.Timers.ScheduleNotificationMsg(0, Effect, msgPutLightOn);
+  end;
+end;
+
+end.

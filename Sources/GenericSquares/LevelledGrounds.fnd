@@ -1,0 +1,90 @@
+unit LevelledGrounds;
+
+uses
+  FunLabyBase;
+
+resourcestring
+  SCategoryLevelledGrounds = 'Terrains à niveau';
+
+actions
+  ClimbLevelUp, FallLevelDown;
+
+components
+  LevelledGroundCreator: TLevelledGroundCreator;
+
+field TLevelledGround
+  name 'Terrain à niveau';
+  image 'Fields/Grass';
+  category SCategoryLevelledGrounds;
+
+  property Level: Integer;
+
+  on Entering do
+  var
+    SrcLevel, LevelDiff: Integer;
+  begin
+    with Context do
+    begin
+      if Src.Z > Dest.Z then
+        Exit
+      else if Src.Z < Dest.Z then
+      begin
+        Cancel;
+        Exit;
+      end;
+
+      if SrcSquare.Field is TLevelledGround then
+        SrcLevel := TLevelledGround(SrcSquare.Field).Level
+      else
+        SrcLevel := 0;
+
+      LevelDiff := Level-SrcLevel;
+
+      if LevelDiff > 0 then
+      begin
+        if not (Player.DoAction(actClimbLevelUp, LevelDiff)) then
+          Cancel;
+      end else if LevelDiff < 0 then
+      begin
+        if not (Player.DoAction(actFallLevelDown, -LevelDiff)) then
+        begin
+          Player.ShowMessage(
+            'T''es pas fou ?! Tu ne voulais quand même pas sauter d''aussi '+
+            'haut ?');
+          Cancel;
+        end;
+      end;
+    end;
+  end;
+
+  on message Plank do
+  var
+    Map: TMap;
+    SrcLevel: Integer;
+  begin
+    Map := Player.Map;
+
+    if (Kind = pmkPassOver) and (Map[Src].Field is TLevelledGround) then
+    begin
+      SrcLevel := TLevelledGround(Map[Src].Field).Level;
+
+      if Map[Pos].Obstacle = nil then
+        Result := SrcLevel > Level
+      else
+        Result := SrcLevel > Level+1;
+    end else if Kind = pmkLeaveFrom then
+    begin
+      Result := (Map[Dest].Field is TLevelledGround) and
+        (TLevelledGround(Map[Dest].Field).Level = Level) and
+        (Map[Src].Obstacle = nil) and (Map[Dest].Obstacle = nil);
+    end;
+  end;
+end;
+
+creator TLevelledGroundCreator for TLevelledGround
+  hint 'Créer un nouveau composant à niveau';
+  image 'Creators/LevelledGroundCreator', 'Creators/Creator';
+  category SCategoryLevelledGrounds;
+end;
+
+end.
