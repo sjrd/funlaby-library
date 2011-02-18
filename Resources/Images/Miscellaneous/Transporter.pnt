@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<painter>
+    <collection name="Description">
+        <items>
+            <item class="string">Transporters/Transporter</item>
+        </items>
+    </collection>
+</painter>
