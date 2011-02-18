@@ -8,7 +8,35 @@ const
 
 components
   ClosedChest: TClosedChest;
+  JustOpenedChest: TJustOpenedChest;
   EmptyOpenChest: TEmptyOpenChest;
+
+obstacle TJustOpenedChest
+  name 'Coffre qui vient juste d''être ouvert';
+  image 'Chests/OpenChest';
+  category SCategoryChests;
+
+  property Tool: TTool;
+
+  on DoDraw do
+  var
+    ToolContext: TDrawSquareContext;
+  begin
+    inherited;
+
+    if Tool <> nil then
+    begin
+      ToolContext := TDrawSquareContext.Create(Bitmap,
+        X, Y-HalfSquareSize, QPos);
+      try
+        ToolContext.SetTickCount(TickCount);
+        Tool.Draw(ToolContext);
+      finally
+        ToolContext.Free;
+      end;
+    end;
+  end;
+end;
 
 obstacle TClosedChest(TBlock)
   name 'Coffre fermé';
@@ -26,12 +54,18 @@ obstacle TClosedChest(TBlock)
   begin
     inherited;
 
-    Square.Obstacle := EmptyOpenChest;
+    try
+      JustOpenedChest.Tool := Square.Tool;
+      Square.Obstacle := JustOpenedChest;
 
-    if Square.Tool <> nil then
-      Square.Tool.Find(Context)
-    else
-      Player.ShowMessage('Il n''y avait rien dans ce coffre.');
+      if Square.Tool <> nil then
+        Square.Tool.Find(Context)
+      else
+        Player.ShowMessage('Il n''y avait rien dans ce coffre.');
+    finally
+      Square.Obstacle := EmptyOpenChest;
+      JustOpenedChest.Tool := nil;
+    end;
   end;
 end;
 
