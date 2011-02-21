@@ -7,7 +7,7 @@ actions
   SelfControlOnIce;
   
 const
-  IceTemporization = 100;
+  DefaultIceTemporization = 100;
   
 components
   Ice: TIce;
@@ -21,6 +21,15 @@ components
 field TIce(TGround)
   name 'Glace';
   image 'Fields/Ice';
+
+  property Temporization: Integer;
+
+  on AfterConstruction do
+  begin
+    inherited;
+
+    Temporization := DefaultIceTemporization;
+  end;
   
   on Entered do
   begin
@@ -29,7 +38,9 @@ field TIce(TGround)
     if Player cannot SelfControlOnIce then
     begin
       GoOnMoving := True;
-      Temporization := IceTemporization;
+
+      if Self.Temporization >= 0 then
+        Context.Temporization := Self.Temporization;
     end;
   end;
 end;
