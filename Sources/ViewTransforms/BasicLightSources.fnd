@@ -1,0 +1,137 @@
+unit BasicLightSources;
+
+uses
+  FunLabyBase, AdvancedViewRestriction, BitmapCache, Ellipses;
+
+resourcestring
+  SCategoryLightSources = 'Sources de lumière';
+
+components
+  CircleLightSourcePlugin: TCircleLightSourcePlugin;
+  CircleLightSourceCreator: TCircleLightSourceCreator;
+
+function DistanceSquare(const Point1, Point2: TPoint): Integer;
+var
+  DiffX, DiffY: Integer;
+begin
+  DiffX := Point1.X - Point2.X;
+  DiffY := Point1.Y - Point2.Y;
+  Result := DiffX*DiffX + DiffY*DiffY;
+end;
+
+class TCircleLightCache(TCustomBitmapCache)
+  on InitializeBitmap do
+  var
+    MaxRadius, Size: Integer;
+    Center: TPoint;
+    MaxRadiusSq, RadiusSq, X, Y: Integer;
+  begin
+    MaxRadius := Integer(Data);
+    if MaxRadius <= 0 then
+      Exit;
+
+    Size := 2*MaxRadius;
+    Bitmap.SetSize(Size, Size);
+    Bitmap.Clear(clBlack32);
+    Center := Point(MaxRadius, MaxRadius);
+
+    // Square radius
+    MaxRadiusSq := MaxRadius * MaxRadius;
+
+    // Draw the useful rect
+    for X := 0 to Size-1 do
+    begin
+      for Y := 0 to Size-1 do
+      begin
+        RadiusSq := DistanceSquare(Center, Point(X, Y));
+
+        if RadiusSq < MaxRadiusSq then
+          Bitmap[X, Y] := SetAlpha(clBlack32, $FF * RadiusSq div MaxRadiusSq);
+      end;
+    end;
+
+    Bitmap.DrawMode := dmCustom;
+    Bitmap.OnPixelCombine := LightCombine;
+  end;
+end;
+
+procedure Loaded(Master: TMaster) private;
+begin
+  CircleLightCache := TCircleLightCache.Create;
+end;
+
+procedure Unloading(Master: TMaster) private;
+begin
+  FreeAndNil(CircleLightCache);
+end;
+
+procedure EmitCircleLight(ViewMask: TBitmap32; const Center: TPoint;
+  MaxRadius: Integer);
+var
+  LightBitmap: TBitmap32;
+begin
+  if MaxRadius <= 0 then
+    Exit;
+
+  LightBitmap := CircleLightCache[Pointer(MaxRadius)];
+  ViewMask.Draw(Center.X - MaxRadius, Center.Y - MaxRadius, LightBitmap);
+end;
+
+plugin TCircleLightSourcePlugin
+  hint 'Le joueur émet un cercle de lumière';
+  image 'Miscellaneous/TorchOn';
+
+  property LightRadius: Integer;
+
+  on message EmitLight do
+  begin
+    EmitCircleLight(ViewMask, LightPos, LightRadius);
+  end;
+end;
+
+poscomponent TCircleLightSource
+  name 'Source de lumière circulaire';
+  image 'Miscellaneous/TorchOn';
+  category SCategoryLightSources;
+
+  property EditingVisible: Boolean;
+  property Visible: Boolean;
+  property LightRadius: Integer;
+
+  on DoDraw do
+  var
+    Center: TPoint;
+    BoundingRect: TRect;
+  begin
+    if Master.Editing then
+    begin
+      if IsNowhere or EditingVisible then
+        inherited;
+
+      if not IsNowhere and (LightRadius > 0) then
+      begin
+        Center := Point(X + HalfSquareSize, Y + HalfSquareSize);
+        BoundingRect := Rect(Center.X - LightRadius, Center.Y - LightRadius,
+          Center.X + LightRadius, Center.Y + LightRadius);
+        Ellipse(Bitmap, BoundingRect, False, False, clYellow32);
+      end;
+    end else
+    begin
+      if Visible then
+        inherited;
+    end;
+  end;
+
+  on message EmitLight do
+  begin
+    EmitCircleLight(ViewMask, LightPos, LightRadius);
+  end;
+end;
+
+creator TCircleLightSourceCreator for TCircleLightSource
+  hint 'Créer une source de lumière circulaire';
+  image 'Miscellaneous/TorchOn', 'Creators/Creator';
+  category SCategoryLightSources;
+end;
+
+end.
