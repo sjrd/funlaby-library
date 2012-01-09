@@ -6,9 +6,6 @@ uses
 actions
   GoOnRails;
 
-attributes
-  ContainingCarriage;
-
 messages
   MobileAction: TPlayerMessage = $11;
   PlayerEnteredTrain: TPlayerMessage = $54;
@@ -172,6 +169,9 @@ end;
 
 poscomponent TAbstractCarriage(TSquareModifier)
 end;
+
+attributes
+  ContainingCarriage: TAbstractCarriage;
 
 creator TRailsLightCreator for TRailsLight
   hint 'Créer de nouveaux feux de chemin de fer';
@@ -341,14 +341,14 @@ poscomponent TCarriage(TAbstractCarriage)
       Cancel;
 
     if (not Locomotive.CanMoveInTrain) and
-      (Player.ContainingCarriage <> Integer(nil)) and
+      (Player.ContainingCarriage <> nil) and
       (TCarriage(Player.ContainingCarriage).Locomotive = Locomotive) then
       Cancel;
   end;
 
   on Exiting do
   begin
-    if Player.ContainingCarriage = Integer(Self) then
+    if Player.ContainingCarriage = Self then
     begin
       if (Locomotive <> nil) and (Locomotive.Moving) then
         Cancel;
@@ -360,10 +360,10 @@ poscomponent TCarriage(TAbstractCarriage)
 
   on Entered do
   begin
-    if Player.ContainingCarriage <> Integer(nil) then
+    if Player.ContainingCarriage <> nil then
       Exit;
 
-    Player.ContainingCarriage := Integer(Self);
+    Player.ContainingCarriage := Self;
 
     if Locomotive <> nil then
     begin
@@ -374,8 +374,8 @@ poscomponent TCarriage(TAbstractCarriage)
 
   on Exited do
   begin
-    if Player.ContainingCarriage = Integer(Self) then
-      Player.ContainingCarriage := Integer(nil)
+    if Player.ContainingCarriage = Self then
+      Player.ContainingCarriage := nil
     else
       Hooked := False;
   end;
@@ -403,7 +403,7 @@ poscomponent TCarriage(TAbstractCarriage)
     begin
       Player := Master.Players[I];
 
-      if Player.ContainingCarriage = Integer(Self) then
+      if Player.ContainingCarriage = Self then
       begin
         Player.Direction := Direction;
         Player.MoveTo(Position);
@@ -428,25 +428,6 @@ poscomponent TCarriage(TAbstractCarriage)
   on DoDraw do
   begin
     DrawRotated(Context, Painter, Angle);
-  end;
-
-  on DefineProperties do
-  var
-    I: Integer;
-  begin
-    inherited;
-
-    { L'implémentation actuelle fait que l'enregistrement de la partie lorsque
-      le joueur est dans un wagon ne peut pas fonctionner correctement.
-      Ceci empêche proprement la sauvegarde avec un message d'erreur. }
-    if psWriting in PersistentState then
-    begin
-      for I := 0 to Master.PlayerCount-1 do
-      begin
-        if Master.Players[I].ContainingCarriage <> Integer(nil) then
-          raise EInOutError.Create(SCannotSaveWhenPlayerInCarriage);
-      end;
-    end;
   end;
 end;
 

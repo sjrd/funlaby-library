@@ -4,7 +4,7 @@ uses
   FunLabyBase;
 
 attributes
-  IsAboveBridge;
+  IsAboveBridge: Boolean;
 
 components
   SimpleBridgeCreator: TSimpleBridgeCreator;
@@ -63,7 +63,7 @@ poscomponent TSimpleBridge(TSquareModifier)
 
   on Exiting do
   begin
-    if Player.IsAboveBridge <> 0 then
+    if Player.IsAboveBridge then
     begin
       if not (Player.Direction in OpenedDirs) then
         Cancel;
@@ -80,7 +80,7 @@ poscomponent TSimpleBridge(TSquareModifier)
   begin
     if NegDir[Player.Direction] in OpenedDirs then
     begin
-      Player.IsAboveBridge := 1;
+      Player.IsAboveBridge := True;
     end else
     begin
       Player.Hide;
@@ -90,9 +90,9 @@ poscomponent TSimpleBridge(TSquareModifier)
 
   on Exited do
   begin
-    if Player.IsAboveBridge <> 0 then
+    if Player.IsAboveBridge then
     begin
-      Player.IsAboveBridge := 0;
+      Player.IsAboveBridge := False;
     end else
     begin
       Player.Show;
@@ -102,7 +102,7 @@ poscomponent TSimpleBridge(TSquareModifier)
 
   on Execute do
   begin
-    if Player.IsAboveBridge = 0 then
+    if not Player.IsAboveBridge then
       Hooked := False;
   end;
 end;

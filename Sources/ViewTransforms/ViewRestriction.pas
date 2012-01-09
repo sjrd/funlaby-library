@@ -9,6 +9,9 @@ const
   attrViewRestrictionRadius = 'ViewRestrictionRadius';
   idViewRestrictionPlugin = 'ViewRestrictionPlugin';
 
+var
+  attrtypeViewRestrictionRadius: Integer;
+
 type
   TViewRestrictionPluginPlayerData = class(TPlayerData)
   private
@@ -79,7 +82,8 @@ var
   MaxRadius, MaxRadiusSq, RadiusSq, X, Y: Integer;
   UsefulRect: TRect;
 begin
-  FViewRestrictionRadius := Player.Attribute[attrViewRestrictionRadius];
+  FViewRestrictionRadius :=
+    Integer(Player.Attributes[attrViewRestrictionRadius]^);
 
   MaskBitmap.SetSize(2*ViewWidth, 2*ViewHeight);
   MaskBitmap.Clear(clBlack32);
@@ -122,7 +126,8 @@ begin
 
   if (MaskBitmapBounds.Right <> 2*ViewWidth) or
     (MaskBitmapBounds.Bottom <> 2*ViewHeight) or
-    (FViewRestrictionRadius <> Player.Attribute[attrViewRestrictionRadius]) then
+    (FViewRestrictionRadius <>
+      Integer(Player.Attributes[attrViewRestrictionRadius]^)) then
   begin
     UpdateMaskBitmap(ViewWidth, ViewHeight);
   end;
