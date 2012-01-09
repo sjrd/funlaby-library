@@ -7,7 +7,7 @@ const
   SCategoryElevators = 'Élévateurs';
 
 attributes
-  ElevatorExplained;
+  ElevatorExplained: Boolean;
 
 components
   ElevatorCreator: TElevatorCreator;
@@ -54,11 +54,11 @@ poscomponent TElevator(TSquareModifier)
 
       IsUp := True;
 
-      if Player.ElevatorExplained = 0 then
+      if not Player.ElevatorExplained then
       begin
         Player.ShowMessage('Cet élévateur t''a fait remonter d''un étage. '+
           'Quand tu en sortiras, il redescendra seul à l''étage inférieur.');
-        Player.ElevatorExplained := 1;
+        Player.ElevatorExplained := True;
       end;
     end;
   end;
