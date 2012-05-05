@@ -33,4 +33,32 @@ plugin TFullScreenShowMessagePlugin(TDefaultShowMessagePlugin)
   end;
 end;
 
+procedure BeginFullScreenMessages(Player: TPlayer);
+var
+  Master: TMaster;
+begin
+  Master := Player.Master;
+  Player.RemovePlugin(DefaultShowMessagePlugin);
+  Player.AddPlugin(FullScreenShowMessagePlugin);
+end;
+
+procedure EndFullScreenMessages(Player: TPlayer);
+var
+  Master: TMaster;
+begin
+  Master := Player.Master;
+  Player.RemovePlugin(FullScreenShowMessagePlugin);
+  Player.AddPlugin(DefaultShowMessagePlugin);
+end;
+
+procedure ShowFullScreenMessage(Player: TPlayer; const Text: string);
+begin
+  BeginFullScreenMessages(Player);
+  try
+    Player.ShowMessage(Text);
+  finally
+    EndFullScreenMessages(Player);
+  end;
+end;
+
 end.
